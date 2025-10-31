@@ -72,48 +72,8 @@ class PDFProcessor(BaseProcessor):
             logger.info(f"Processing PDF file: {file_path}")
             logger.info(f"pdf_to_image_enabled = {pdf_to_image_enabled}")
             
-            # If pdf_to_image_enabled is True, always use OCR
-            if pdf_to_image_enabled:
-                logger.info("pdf_to_image_enabled is True: using OCR for all pages")
-                return self._process_with_ocr(file_path)
-            
-            logger.info("pdf_to_image_enabled is False: trying direct text extraction first")
-            # Otherwise, try to extract text directly first (smart logic)
-            try:
-                import fitz  # PyMuPDF
-                
-                doc = fitz.open(file_path)
-                text_content = []
-                page_count = len(doc)  # Store page count
-                
-                try:
-                    for page_num in range(page_count):
-                        page = doc.load_page(page_num)
-                        text = page.get_text()
-                        if text.strip():
-                            text_content.append(text)
-                    
-                    # If we got substantial text, use it
-                    if text_content and any(len(text.strip()) > 50 for text in text_content):
-                        logger.info("PDF contains extractable text, using direct extraction")
-                        content = "\n\n".join(text_content)
-                        return ConversionResult(
-                            content=content,
-                            metadata={
-                                'file_path': file_path,
-                                'file_type': 'pdf',
-                                'pages': len(text_content),
-                                'extraction_method': 'direct'
-                            }
-                        )
-                finally:
-                    doc.close()
-                
-            except Exception as e:
-                logger.warning(f"Direct text extraction failed: {e}")
-            
-            # Fallback to OCR-based processing (for scanned PDFs or insufficient text)
-            logger.info("Using OCR-based PDF processing (scanned PDF or insufficient text)")
+            # Always use OCR-based processing (pdf2image + OCR)
+            logger.info("Using OCR-based PDF processing with pdf2image")
             return self._process_with_ocr(file_path)
             
         except Exception as e:
@@ -122,30 +82,22 @@ class PDFProcessor(BaseProcessor):
     
     def _process_with_ocr(self, file_path: str) -> ConversionResult:
         """Process PDF using OCR after converting pages to images."""
-        doc = None
         try:
-            import fitz  # PyMuPDF
-            from PIL import Image
-            import io
+            from pdf2image import convert_from_path
+            from ..config import InternalConfig
             
-            doc = fitz.open(file_path)
+            # Get DPI from config
+            dpi = getattr(InternalConfig, 'pdf_image_dpi', 300)
+            
+            # Convert PDF pages to images using pdf2image
+            images = convert_from_path(file_path, dpi=dpi)
+            page_count = len(images)
             all_content = []
-            page_count = len(doc)  # Store page count before processing
             
-            for page_num in range(page_count):
-                page = doc.load_page(page_num)
-                
-                # Convert page to image
-                mat = fitz.Matrix(2, 2)  # Scale factor for better OCR
-                pix = page.get_pixmap(matrix=mat)
-                
-                # Convert to PIL Image
-                img_data = pix.tobytes("png")
-                img = Image.open(io.BytesIO(img_data))
-                
+            for page_num, image in enumerate(images):
                 # Save to temporary file for OCR processing
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                    img.save(tmp.name)
+                    image.save(tmp.name, 'PNG')
                     temp_image_path = tmp.name
                 
                 try:
@@ -167,49 +119,45 @@ class PDFProcessor(BaseProcessor):
                 metadata={
                     'file_path': file_path,
                     'file_type': 'pdf',
-                    'pages': page_count,  # Use stored page count
+                    'pages': page_count,
                     'extraction_method': 'ocr'
                 }
             )
             
+        except ImportError:
+            logger.error("pdf2image not available. Please install it: pip install pdf2image")
+            raise ConversionError("pdf2image is required for PDF processing")
         except Exception as e:
             logger.error(f"OCR-based PDF processing failed: {e}")
             raise ConversionError(f"OCR-based PDF processing failed: {e}")
-        finally:
-            if doc is not None:
-                try:
-                    doc.close()
-                except Exception as e:
-                    logger.warning(f"Failed to close PDF document: {e}")
     
-    def _convert_page_to_image(self, doc, page_num: int) -> str:
+    def _convert_page_to_image(self, pdf_path: str, page_num: int) -> str:
         """Convert a PDF page to an image file.
         
         Args:
-            doc: PyMuPDF document object
+            pdf_path: Path to the PDF file
             page_num: Page number (0-based)
             
         Returns:
             Path to the temporary image file
         """
         try:
-            import fitz  # PyMuPDF
-            
-            page = doc.load_page(page_num)
+            from pdf2image import convert_from_path
+            from ..config import InternalConfig
             
             # Use configuration for image quality
             dpi = getattr(InternalConfig, 'pdf_image_dpi', 300)
-            scale = getattr(InternalConfig, 'pdf_image_scale', 2.0)
             
-            # Calculate matrix for desired DPI
-            mat = fitz.Matrix(scale, scale)
+            # Convert specific page to image
+            images = convert_from_path(pdf_path, dpi=dpi, first_page=page_num + 1, last_page=page_num + 1)
             
-            # Convert page to pixmap
-            pix = page.get_pixmap(matrix=mat)
+            if not images:
+                logger.error(f"Failed to extract page {page_num + 1} to image")
+                return None
             
             # Save to temporary file
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                pix.save(tmp_file.name)
+                images[0].save(tmp_file.name, 'PNG')
                 logger.debug(f"Page {page_num + 1} converted to image: {tmp_file.name}")
                 return tmp_file.name
                 

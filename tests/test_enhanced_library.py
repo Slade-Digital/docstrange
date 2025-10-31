@@ -227,7 +227,7 @@ def main():
     print("\n" + "=" * 60)
     print("✅ Enhanced Library Tests Completed!")
     print("\n📋 Summary:")
-    print("- Enhanced PDF processing with PyMuPDF")
+    print("- Enhanced PDF processing with pdf2image")
     print("- Added PowerPoint support")
     print("- Added image processing with PaddleOCR")
     print("- Improved HTML table conversion")

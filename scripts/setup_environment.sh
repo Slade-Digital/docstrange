@@ -29,7 +29,7 @@ pip install -e .
 
 # Install additional dependencies for full functionality
 echo "🔧 Installing additional dependencies..."
-pip install requests beautifulsoup4 pandas openpyxl PyMuPDF python-pptx Pillow lxml
+pip install requests beautifulsoup4 pandas openpyxl python-pptx Pillow lxml
 
 # Install PaddleOCR (optional but recommended for OCR)
 echo "🤖 Installing PaddleOCR for OCR capabilities..."

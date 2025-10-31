@@ -171,7 +171,7 @@ The repository includes an MCP server for Claude Desktop integration (local deve
 ## Dependencies
 
 ### Core Dependencies
-- `PyMuPDF`: PDF processing
+- `pdf2image`: PDF to image conversion
 - `python-docx`, `python-pptx`, `openpyxl`: Office formats
 - `beautifulsoup4`, `markdownify`: HTML/Markdown conversion
 - `Pillow`, `pdf2image`: Image processing

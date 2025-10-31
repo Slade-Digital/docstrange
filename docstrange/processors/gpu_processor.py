@@ -459,45 +459,28 @@ class GPUProcessor(BaseProcessor):
             List of paths to temporary image files
         """
         try:
-            import fitz  # PyMuPDF
+            from pdf2image import convert_from_path
+            from ..config import InternalConfig
             
-            # Open the PDF
-            pdf_document = fitz.open(pdf_path)
+            # Get DPI from config
+            dpi = getattr(InternalConfig, 'pdf_image_dpi', 300)
+            
+            # Convert PDF pages to images using pdf2image
+            images = convert_from_path(pdf_path, dpi=dpi)
             image_paths = []
             
-            # Create temporary directory for images
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-                
-                # Convert each page to image
-                for page_num in range(len(pdf_document)):
-                    page = pdf_document.load_page(page_num)
-                    
-                    # Set zoom factor for better quality
-                    mat = fitz.Matrix(2.0, 2.0)  # 2x zoom for better OCR
-                    
-                    # Render page to image
-                    pix = page.get_pixmap(matrix=mat)
-                    
-                    # Save image
-                    image_path = temp_path / f"page_{page_num+1}.png"
-                    pix.save(str(image_path))
-                    
-                    # Copy to a persistent temporary file
-                    persistent_image_path = tempfile.mktemp(suffix='.png')
-                    import shutil
-                    shutil.copy2(str(image_path), persistent_image_path)
-                    
-                    image_paths.append(persistent_image_path)
-                
-                pdf_document.close()
+            # Save each image to a temporary file
+            for page_num, image in enumerate(images):
+                persistent_image_path = tempfile.mktemp(suffix='.png')
+                image.save(persistent_image_path, 'PNG')
+                image_paths.append(persistent_image_path)
             
             logger.info(f"Converted PDF to {len(image_paths)} images")
             return image_paths
             
         except ImportError:
-            logger.error("PyMuPDF (fitz) not available. Please install it: pip install PyMuPDF")
-            raise ConversionError("PyMuPDF is required for PDF processing")
+            logger.error("pdf2image not available. Please install it: pip install pdf2image")
+            raise ConversionError("pdf2image is required for PDF processing")
         except Exception as e:
             logger.error(f"Failed to extract PDF to images: {e}")
             raise ConversionError(f"PDF to image conversion failed: {e}")
