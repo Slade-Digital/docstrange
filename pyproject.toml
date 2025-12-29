@@ -74,10 +74,18 @@ local-llm = [
 web = [
     "Flask>=2.0.0",
 ]
+api = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.0.0",
+    "httpx>=0.24.0",
+]
 
 [project.scripts]
 docstrange = "docstrange.cli:main"
 docstrange-web = "docstrange.web_app:run_web_app"
+docstrange-api = "docstrange.api_server:main"
 
 [project.urls]
 Homepage = "https://github.com/nanonets/docstrange"

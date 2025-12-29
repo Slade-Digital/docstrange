@@ -17,6 +17,9 @@ The library offers two processing modes:
 # Install in development mode with all dependencies
 pip install -e ".[dev]"
 
+# Install with API server support (FastAPI + Gradio)
+pip install -e ".[api]"
+
 # Install with local LLM support (for enhanced JSON extraction)
 pip install -e ".[local-llm]"
 
@@ -86,6 +89,11 @@ python -m twine upload dist/*
 - `AuthService`: Handles OAuth authentication for cloud mode
 - `OllamaService`: Local LLM integration for enhanced JSON extraction
 
+**API Server** (`docstrange/api_server.py`, `docstrange/api_client.py`)
+- `api_server`: FastAPI production server for external applications
+- `api_client`: Python async client for external applications (e.g., Agent Steve)
+- Command: `docstrange-api`
+
 **Result Classes** (`docstrange/result.py`)
 - `ConversionResult`: Base result class with extraction methods
 - `GPUConversionResult`: Enhanced result for GPU processing
@@ -143,6 +151,29 @@ docstrange --logout
 ### API Key Access (10k docs/month)
 - Get key from https://app.nanonets.com/#/keys
 - Pass via `api_key` parameter or `NANONETS_API_KEY` env var
+
+## API Server (for external applications)
+
+Run DocStrange as an API server for integration with other applications:
+
+```bash
+# Install API dependencies
+pip install -e ".[api]"
+
+# Start API server
+docstrange-api
+
+# Test with UI (use existing Flask web interface)
+docstrange-web
+
+# Use in your application
+from docstrange.api_client import DocStrangeClient
+
+async with DocStrangeClient("http://localhost:8000") as client:
+    result = await client.extract_simple("document.pdf")
+```
+
+See `examples/api_server_example.py` and `docs/API_SERVER.md` for more details.
 
 ## MCP Server Integration
 
